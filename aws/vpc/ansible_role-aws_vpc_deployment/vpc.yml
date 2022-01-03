@@ -1,0 +1,9 @@
+#mention hosts
+---
+- hosts: localhost
+
+  roles:
+          - aws-vpc
+          
+#mention your role
+

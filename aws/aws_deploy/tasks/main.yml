@@ -1,0 +1,104 @@
+---
+
+ - name: create VPC
+   ec2_vpc_net:
+     name: "{{ vpc_name }}"
+     cidr_block: "{{ vpc_cidr }}"
+     region: "{{ region }}"
+     state: present
+     aws_access_key: "{{ aws_access_key }}"
+     aws_secret_key: "{{ aws_secret_key }}"
+    # tenancy: dedicated
+   register: vpc
+
+
+ - name: Set VPC ID in variable
+   set_fact:
+     vpc_id: "{{ vpc.vpc.id }}"
+
+
+ - name: associate subnet to the VPC
+   ec2_vpc_subnet:
+    state: present
+    vpc_id: "{{ vpc_id }}"
+    #region: "{{ region }}"
+    region: us-east-1
+    az: us-east-1a
+    cidr: "{{ subnet_cidr }}"
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    map_public: yes
+    resource_tags:
+      Name: "{{ subnet_name }}"
+   register: subnet
+
+ - name: set subnet id in variable
+   set_fact:
+           sub1_id: "{{ subnet.subnet.id}}"
+
+ - name: associate subnet to the VPC
+   ec2_vpc_subnet:
+    state: present
+    vpc_id: "{{ vpc_id }}"
+    #region: "{{ region }}"
+    region: us-east-1
+    az: us-east-1b
+    cidr: "10.10.2.0/24"
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    map_public: yes
+    resource_tags:
+      Name: "Ansible-Subnet-2"
+   register: subnet
+
+ - name: set subnet id in variable
+   set_fact:
+           sub2_id: "{{ subnet.subnet.id}}"
+
+ - name: create IGW
+   ec2_vpc_igw:
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ region }}"
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    state: present
+    tags:
+      Name: "{{ igw_name }}"
+   register: igw
+  
+ #creating a rds subnet group with atleast 2 subnets which are assigned to the VPC created  
+ - rds_subnet_group:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    state: present
+    name: beast
+    region: us-east-1
+    description: My Fancy Ex Parrot Subnet Group
+    subnets:
+          - "{{sub1_id}}"
+          - "{{sub2_id}}"
+
+#creating a rds database 
+ - rds:
+                  aws_access_key: "{{ aws_access_key }}"
+                  aws_secret_key: "{{ aws_secret_key }}"
+                  command: create
+                  instance_name: new-database
+                  region: us-east-1
+                  subnet: beast
+                  #vpc_security_groups: 
+                  #subnet: 
+                  db_engine: MySQL
+                  db_name: trial101
+                  size: 1000
+                  instance_type: db.m5.xlarge
+                  username: mysql_admin
+                  password: 1nsecure
+                  tags:
+                          Environment: testing
+                          Application: cms
+
+
+
+
+
